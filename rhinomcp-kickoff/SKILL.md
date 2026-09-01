@@ -1,7 +1,7 @@
 ---
 name: RhinoMCP开工
 description: 把 AI 接到 Rhino：装插件、uvx 起桥、mcpstart，不走 GitHub。
-version: 1.0.0
+version: 1.1.0
 ---
 
 # RhinoMCP 打通（第一步）
@@ -138,3 +138,56 @@ Windows 上若 `uvx` 不是一条命令，把 `command` 改成 `uvx.exe` 的绝�
 用户用中文说要建什么（尺寸用毫米）。先读场景再建模；改完截同一机位视口。不要一上来建整栋楼。
 
 McNeel 官方 RhinoMCP 仍是 WIP，这份 skill 不要去装它。
+
+## 8. 连上后的默认演示（用户没点名要建什么时）
+
+第 5 步盒子验收成功、用户还没给项目时：**不要空停，也不要建整栋楼。** 做「开场三连」，让人一眼看到 AI 不只会画盒子。
+
+规则：
+
+- 几何只放新图层 `MCP_Demo`，不要动用户已有模型
+- 已有重要模型时：只加图层，禁止 boolean / 全选删除
+- 每个任务做完立刻截 `perspective`（`zoom_to_fit=True`）给用户看，再做下一个
+- 三个都做完就停，问还要不要可选项
+- 尺寸一律毫米。某个工具当前客户端没有：跳过该项，改下一项，不要卡死
+
+### A · Loft 花瓶（曲面，不是盒子）
+
+1. `CIRCLE`：圆心 `(0,0,0)` 半径 `400`
+2. `CIRCLE`：圆心 `(0,0,800)` 半径 `180`
+3. `loft` 这两根曲线（普通 loft 即可）
+4. 上色，截透视
+
+看点：两条圆一 loft，花瓶形体出来。这是「高级建模」而不是堆 primitive。
+
+### B · 文字 + 尺寸标注（图纸感）
+
+rhinomcp 通常没有独立的 dimension 工具，用 `execute_rhinoscript_python_code`：
+
+```python
+import rhinoscriptsyntax as rs
+rs.AddText("1000 mm", (500, -250, 0), 80)
+rs.AddLinearDimension((0, 0, 0), (1000, 0, 0), (500, -180, 0))
+```
+
+看点：视口里同时出现模型和标注。很多人不知道 MCP 能标尺寸。
+
+失败就跳过，不要为标注重装插件。
+
+### C · Grasshopper 三层楼（拖 slider 会变）
+
+1. `gh_create_document(new_if_missing=True, make_active=True)`
+2. `gh_build_graph` 搭最少节点：`XY Plane` + 层数 `Number Slider`(默认 3) + `Series` + `Vector XYZ` + `Move` + `Center Box`（平面尺寸约 8000×6000，层高 3500）
+3. `recompute=True`，截 GH 预览或 Rhino 透视
+
+看点：告诉用户去 Grasshopper 拖「层数」slider，楼会变高。这是参数化，不是死模型。
+
+连线失败时不要硬撑吸引子/逐顶点变形。退回 A 的 loft 即可。
+
+### 可选（用户说「再来」时，每次只做一个）
+
+- **Pipe 栏杆**：一条折线/曲线 + `pipe`（半径 40）。看点：家具/扶手，不是体块。
+- **布尔挖洞**：盒子减一个圆柱/球。看点：空心、洞口。
+- **GH 嵌套玻璃球**：`Mesh Sphere Ex` + 多层半径 Series（不要做 sin 逐顶点，MCP 走不通）。看点：参数化好看，不是建筑。
+
+不要默认跑可选三项。三连已经够「这也行」。
