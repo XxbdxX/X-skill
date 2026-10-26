@@ -5,3 +5,4 @@
 | 文件夹 | Skill ID | 展示名 | SkillHub |
 |---|---|---|---|
 | `rhinomcp-kickoff/` | rhinomcp-kickoff | RhinoMCP开工 | skill_id 86846 |
+| `sketchup-kickoff/` | sketchup-kickoff | sketchup-开工 | 待补 |

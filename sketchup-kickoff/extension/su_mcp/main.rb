@@ -4,6 +4,8 @@ require 'socket'
 require 'fileutils'
 
 puts "MCP Extension loading..."
+# [PATCH 2026-10-26] 原为 `SKETCHUP_CONSOLE.show rescue nil`
+# 在 SketchUp 2020 启动期调用 SKETCHUP_CONSOLE.show 会导致进程无提示退出，改走日志文件。
 
 module SU_MCP
   class Server
@@ -12,15 +14,18 @@ module SU_MCP
       @server = nil
       @running = false
       @timer_id = nil
+      
+      # [PATCH 2026-10-26] 移除启动期打开 Ruby 控制台的三种尝试（SketchUp 2020 会崩溃）
+      @log_path = File.join(File.dirname(__FILE__), 'mcp_server.log')
     end
 
     def log(msg)
+      # [PATCH 2026-10-26] 不再写 Ruby 控制台，改为写同目录日志文件
       begin
-        SKETCHUP_CONSOLE.write("MCP: #{msg}\n")
+        File.open(@log_path, 'a') { |f| f.puts("[#{Time.now.strftime('%H:%M:%S')}] #{msg}") }
       rescue
-        puts "MCP: #{msg}"
       end
-      STDOUT.flush
+      puts "MCP: #{msg}"
     end
 
     def start
@@ -1842,8 +1847,6 @@ module SU_MCP
     menu = UI.menu("Plugins").add_submenu("MCP Server")
     menu.add_item("Start Server") { @server.start }
     menu.add_item("Stop Server") { @server.stop }
-    server = @server
-    UI.start_timer(3, false) { server.start }
     
     file_loaded(__FILE__)
   end
