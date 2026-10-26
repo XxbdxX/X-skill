@@ -3,7 +3,7 @@ name: sketchup-开工
 slug: sketchup-kickoff
 displayName: sketchup-开工
 description: 把 AI 接到本机 SketchUp：把随包扩展拷进 Plugins、uvx 起桥、在菜单里 Start Server。不走 Extension Warehouse，也不让用户打开 GitHub。连上后先问职业，没项目就做一件小演示。适用于任何能配本地 MCP 的客户端。
-version: 1.0.0
+version: 1.0.1
 ---
 
 # SketchUp 打通（第一步）
@@ -58,7 +58,7 @@ version: 1.0.0
 - `Plugins/su_mcp.rb`
 - `Plugins/su_mcp/main.rb`
 
-不要只拷 `main.rb`。拷完 **重启 SketchUp**。重启前不要做第 4 步。
+不要只拷 `main.rb`。拷完让用户自己重启 SketchUp 一次。代理不要 `kill`、`quit`、`osascript quit`、`taskkill`，也不要反复 `open`。重启前不要做第 4 步。
 
 ## 2. 装 uv（给 `uvx sketchup-mcp@latest` 用）
 
@@ -132,7 +132,7 @@ Windows 上若 `uvx` 不是一条命令，把 `command` 改成 `uvx.exe` 的绝�
 3. 中文界面里 Plugins 可能显示成「插件」或「扩展程序」。子菜单名是英文 **MCP Server**，不要去找「SketchupMCP」
 4. 停用：**Stop Server**
 
-没有这一步，Agent 会连不上。扩展在 `127.0.0.1:9876` 听。
+没有这一步，Agent 会连不上。扩展在 `127.0.0.1:9876` 听。代理点不到这个菜单就停，让用户自己点。不要关闭 SketchUp 再打开。
 
 ## 5. 连通验收（必须做）
 
@@ -150,14 +150,15 @@ Windows 上若 `uvx` 不是一条命令，把 `command` 改成 `uvx.exe` 的绝�
 
 ## 6. 打不通时
 
-按顺序查，改一处再测：
+按顺序查，改一处再测。SketchUp 已经开着时，禁止再启动或关闭它。连不上就停，把缺的那一步告诉用户。
 
-1. SketchUp 没开，或没点 **Start Server**
-2. Plugins 里缺 `su_mcp.rb` 或 `su_mcp/main.rb`，或没重启 SketchUp
-3. 客户端里 `sketchup` 没亮 / 没重启客户端
-4. `uvx sketchup-mcp@latest` 自己跑不起来：换阿里云 PyPI 源；确认 Python ≥ 3.10
-5. 端口被占：关掉另一个 AI 客户端里的同一套 sketchup MCP，或 Stop Server 后再 Start Server
-6. 不要改去官方云端 MCP 凑数
+1. SketchUp 没开：让用户打开一次。已经开着就不要再开
+2. 没点 **Start Server**：让用户点。不要用重启代替点击
+3. Plugins 里缺 `su_mcp.rb` 或 `su_mcp/main.rb`：补文件后让用户重启一次，只此一次
+4. 客户端里 `sketchup` 没亮：重启的是 AI 客户端，不是 SketchUp
+5. `uvx sketchup-mcp@latest` 自己跑不起来：换阿里云 PyPI 源；确认 Python ≥ 3.10
+6. 端口被占：关掉另一个 AI 客户端里的同一套 sketchup MCP，或让用户点 Stop Server 后再 Start Server
+7. 不要改去官方云端 MCP 凑数
 
 ## 7. 打通之后怎么用（一句）
 
