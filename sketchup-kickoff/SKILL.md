@@ -2,114 +2,135 @@
 name: sketchup-开工
 slug: sketchup-kickoff
 displayName: sketchup-开工
-description: 把 AI 接到本机 SketchUp：随包扩展拷进 Plugins，加载后自动听 9876。桥锁定 sketchup-mcp 0.1.17、mcp 1.12.0、pydantic 2.12 以下。不走 Extension Warehouse，也不让用户打开 GitHub。连上后先问职业，没项目就做一件小演示。
-version: 1.0.2
+description: 把 AI 接到本机 SketchUp：拷扩展 + 打补丁、uvx 起桥、锁死版本组合、一键自检。不走 Extension Warehouse，不让用户打开 GitHub。连上后按用户给的任务做，没项目就做一件小演示。适用于任何能配本地 MCP 的客户端。
+version: 1.1.0
 ---
 
 # SketchUp 打通（第一步）
 
-目标：让当前 Agent **真的连上本机 SketchUp**，能建一个盒子并导出一张图。不是讲原理，不是建模教程。
+目标：让当前 Agent **真的连上本机 SketchUp**，能建一个形体并导出一张图。不是讲原理，不是建模教程。
 
-适用：任何能配本地 MCP 的客户端（WorkBuddy、Claude Desktop、Claude Code、Cursor、Codex、Cline 等）。改的是「MCP 配置里的 sketchup 这一项」。
+**v1.1 修订说明（重要）：** v1.0 写于没装 SketchUp 的机器上，未验收。v1.1 在 **Windows 11 + SketchUp 2020 (20.1.229) + Python 3.13 + uv 0.13.5** 实测打通，修掉 5 个会让流程卡死的问题。**v1.0 里 `sketchup-mcp@latest` 那套配置今天直接跑不起来**，原因见第 3 节。
 
-桥用 PyPI 的 **sketchup-mcp**（2026-10-26 查到的版本是 **0.1.17**）。扩展文件在本 skill 的 `extension/` 里，来自 `mhyrr/sketchup-mcp` 的 MIT 源码，不是 Extension Warehouse 上的包。仓库没有发布好的 rbz，所以不要让用户自己去下。
+已验证和未验证分开标：
 
-**禁止：** `git clone`、打开 GitHub、Extension Warehouse 里搜 MCP、改走 `api.sketchup.com` 的官方云端 MCP。官方那个是另一套，这份 skill 不覆盖。国内打不开 GitHub 时，用随包文件，不要换路。
+| 状态 | 内容 |
+|---|---|
+| ✅ 已实测 | 镜像源装 uv、扩展拷入、两个补丁、版本锁组合、explorer 启动、TCP 直连、eval_ruby 建模、PNG 出图 |
+| ⚠️ 未实测 | 第 8 节三段演示代码（小房子/房间/景观）、Mac 路径、其他 SketchUp 年份 |
 
-**没在这台机器上跑过验收。** SketchUp 不在写这份 skill 的电脑上。连上之后必须做第 5 步，不要把文档写成已经打通。
+**禁止：** `git clone`、让用户打开 GitHub、Extension Warehouse 里搜 MCP、改走 `api.sketchup.com` 的官方云端 MCP。国内打不开 GitHub 时用随包文件，不要换路。
 
-## 0. 第一句就问
+---
 
-只问一次。第一条消息先问职业，同一条里把环境问完。不要先讲原理，不要先建模型。
+## 0. 先问（只问一次）
 
-职业（必问，只给这三个）：
+第一条消息把要问的一次问完，不要先讲原理。
 
-- 建筑设计
-- 景观设计
-- 室内设计
+**用户已经说要建什么**（比如「建个正二十面体」）→ 记下，直接开工，跳过职业询问，连上后立刻做。不要因为「流程规定」卡着他先答职业。
 
-环境（同一条里问，缺什么补什么）：
+**用户没说建什么** → 问一次，只要这三选一：建筑设计 / 景观设计 / 室内设计。
+
+环境（缺什么补什么，能自己测就别问）：
 
 - 系统：Windows 还是 Mac
-- SketchUp 是否已装，哪一年的版本
-- 用的哪个 AI 客户端
-- 有没有 Python 3.10+（`python --version` / `py --version`）
+- SketchUp 年份和安装路径（**别猜**，见 1.1 的查找命令）
+- 有没有 Python 3.10+ 和 `uvx`
 
-用户已经说了要建什么：记下，连上后再做，不要跳过打通。
-缺 SketchUp：停，让用户先装。不要继续。
-职业没答：先打通，打通后再问一次。
+缺 SketchUp → 停，让用户先装。
 
-## 1. 装扩展（用随包文件，不走仓库）
+---
 
-本 skill 目录下有：
+## 1. 装扩展 + 打补丁
 
-- `extension/su_mcp.rb`
-- `extension/su_mcp/main.rb`
+### 1.1 找 Plugins 目录
 
-拷进该用户 **已安装那个年份** 的 Plugins 文件夹。找不到年份就问，不要猜。
+按**已安装的年份**找，不要猜。Windows：
 
-常见落点：
+```bash
+ls -d "/c/Program Files/SketchUp"*/SketchUp* "/d/Program Files/SketchUp"*/SketchUp* 2>/dev/null
+find /c /d -maxdepth 4 -iname "SketchUp.exe" 2>/dev/null
+```
 
-- Mac：`~/Library/Application Support/SketchUp 20XX/SketchUp/Plugins/`
+用户配置目录（扩展真正要放的地方）：
+
 - Windows：`%APPDATA%\SketchUp\SketchUp 20XX\SketchUp\Plugins\`
+- Mac：`~/Library/Application Support/SketchUp 20XX/SketchUp/Plugins/`
 
-拷完应是：
+拷完必须是这样（**不要只拷 main.rb**）：
 
-- `Plugins/su_mcp.rb`
-- `Plugins/su_mcp/main.rb`
+```
+Plugins/su_mcp.rb
+Plugins/su_mcp/main.rb
+```
 
-不要只拷 `main.rb`。拷完让用户自己重启 SketchUp 一次。代理不要 `kill`、`quit`、`osascript quit`、`taskkill`，也不要反复 `open`。重启前不要做第 4 步。
+### 1.2 打两个补丁（v1.1 新增，不打就连不上）
 
-## 2. 装 uv（给 `uvx sketchup-mcp@latest` 用）
+**补丁 A — 移除启动期的 `SKETCHUP_CONSOLE.show`。**
+`main.rb` 里有 3 处（约 L7、L19、L24），在 SketchUp 2020 加载期调用会让进程**无提示直接退出**，表现为「启动一下就没了」。把这三处删掉或注释，`log` 方法改为写文件：
+
+```ruby
+def log(msg)
+  begin
+    File.open(@log_path, 'a') { |f| f.puts("[#{Time.now.strftime('%H:%M:%S')}] #{msg}") }
+  rescue
+  end
+  puts "MCP: #{msg}"
+end
+```
+
+并在 `initialize` 里加 `@log_path = File.join(File.dirname(__FILE__), 'mcp_server.log')`。
+
+**补丁 B — 自动 Start Server。**
+v1.0 让用户手点菜单，在 Agent 场景下等于断链（Agent 点不了菜单）。在 `su_mcp.rb` 的 `register_extension` 之后加：
+
+```ruby
+UI.start_timer(3.0, false) {
+  begin
+    srv = (defined?(SU_MCP) ? SU_MCP.instance_variable_get(:@server) : nil)
+    srv.start if srv && !srv.instance_variable_get(:@running)
+  rescue
+  end
+}
+```
+
+补丁前先 `cp main.rb main.rb.orig` 备份。改完**重启 SketchUp** 才生效。
+
+---
+
+## 2. 装 uv
 
 检查：`uvx --version`。有就跳过。
 
-没有时按这个顺序，不要用 `curl github.com`：
+Windows（PowerShell）：`pip install uv -i https://mirrors.aliyun.com/pypi/simple`
+Mac 无 brew 时：`pip3 install uv -i https://mirrors.aliyun.com/pypi/simple`
 
-**Mac**
+装完记下 `uvx` 的**绝对路径**（Windows 上常不在 PATH 里，要写进 MCP 配置）。
 
-```bash
-brew install uv
-```
+---
 
-没有 brew 时：
+## 3. 写 MCP 配置（必须锁版本，这是 v1.1 最关键的改动）
 
-```bash
-pip3 install uv -i https://mirrors.aliyun.com/pypi/simple
-```
+v1.0 的配置是 `"args": ["sketchup-mcp@latest"]`。**这个写法 2026-10-26 实测崩溃**：
 
-**Windows**（PowerShell）
+1. `@latest` 拉到 `sketchup-mcp 0.1.17`，它声明 `mcp[cli]>=1.3.0` **没有上限**
+2. 于是装到 `mcp 2.x`，而 2.x 把 `FastMCP` 改名成 `MCPServer` → `ModuleNotFoundError: No module named 'mcp.server.fastmcp'`
+3. 加 `mcp<2` 后，`mcp 1.15+` 的 `FastMCP.__init__` 又不认 `description` 参数
+4. 退到 `mcp 1.12.0` 后，又撞 `pydantic 2.12` 移除了 `eval_type_backport`
 
-```powershell
-pip install uv -i https://mirrors.aliyun.com/pypi/simple
-```
-
-或已有 `winget`：`winget install astral-sh.uv`
-
-跑 MCP 前先设国内源（当前会话即可）：
-
-```bash
-set UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
-```
-
-PowerShell：`$env:UV_INDEX_URL="https://mirrors.aliyun.com/pypi/simple"`
-
-先单独试一次下面这条，不要用 `uvx sketchup-mcp@latest`。`@latest` 会拉到 mcp 2.x，`FastMCP` 已改名，桥直接导入失败。WorkBuddy 在 SketchUp 2020 上测通的组合是 `sketchup-mcp==0.1.17` + `mcp[cli]==1.12.0` + `pydantic<2.12`。
-
-```bash
-uvx --with "mcp[cli]==1.12.0" --with "pydantic<2.12" sketchup-mcp==0.1.17
-```
-
-这时还连不上 SketchUp 是正常的。若报 `mcp.server.fastmcp`、`FastMCP` 或 `eval_type_backport`，就是依赖没锁住，不要改回 `@latest`。
-
-## 3. 写入客户端的 MCP 配置
+**唯一能同时满足的组合就是这三个一起锁：**
 
 ```json
 {
   "mcpServers": {
     "sketchup": {
-      "command": "uvx",
-      "args": ["--with", "mcp[cli]==1.12.0", "--with", "pydantic<2.12", "sketchup-mcp==0.1.17"],
+      "command": "<uvx 的绝对路径>",
+      "args": [
+        "--from", "sketchup-mcp==0.1.17",
+        "--with", "mcp[cli]==1.12.0",
+        "--with", "pydantic<2.12",
+        "sketchup-mcp"
+      ],
       "env": {
         "UV_INDEX_URL": "https://mirrors.aliyun.com/pypi/simple"
       }
@@ -118,71 +139,97 @@ uvx --with "mcp[cli]==1.12.0" --with "pydantic<2.12" sketchup-mcp==0.1.17
 }
 ```
 
-桥写死连 `localhost:9876`。不要改端口，不要加 Rhino 那种 `RHINO_MCP_HOST`。
+改配置前先备份原文件。常见落点：WorkBuddy `~/.workbuddy/mcp.json`、Cursor `.cursor/mcp.json`、Claude Desktop 设置里的 JSON。
 
-Windows 上若 `uvx` 不是一条命令，把 `command` 改成 `uvx.exe` 的绝对路径，`args` 仍用上面那五行。写入时合并已有的 `mcp.json`，不要覆盖 rhino 或其他项。
+**检查点：** 单独跑一次下面这条，看到 `SketchupMCPServer ... starting up` 加一条「连不上 SketchUp」的 WARNING 就算对——这时连不上是**正常**的，因为第 4 步还没做。
 
-- **Claude Code / Codex：** 用上面的 JSON，不要写成 `uvx sketchup-mcp@latest`
-- **Claude Desktop：** 设置里的 MCP 配置 JSON
-- **Cursor：** `.cursor/mcp.json` 或 Settings → MCP
-- **WorkBuddy：** `~/.workbuddy/mcp.json`（Windows：`%USERPROFILE%\.workbuddy\mcp.json`），或 连接器 / MCP → 自定义连接器
+```bash
+uvx --from sketchup-mcp==0.1.17 --with "mcp[cli]==1.12.0" --with "pydantic<2.12" sketchup-mcp --help
+```
 
-写入后重启该客户端。同一时间只开一个连 SketchUp 的 MCP 客户端。
+---
 
-## 4. 打开桥
+## 4. 启动 SketchUp（别用 shell 子进程）
 
-扩展加载约 3 秒后会自己听 `127.0.0.1:9876`。不要为了启动去点菜单，也不要传 `-RubyStartup`。
+**这是 v1.0 完全没写、但最容易浪费半小时的一条。**
 
-Windows 上不要用 `Start-Process` 启动 SketchUp。那样启动的窗口会随那条命令结束被收掉，看起来像闪退，其实不是崩溃。要代开就用 `explorer.exe` 打开 `SketchUp.exe`，或者让用户自己开。只重启一次。进程消失时，先分清是 Start-Process 被回收，还是 Ruby 控制台把 2020 打退了。
+用 Agent 的 shell / `Start-Process` 启动的 GUI 进程，会随那条命令结束**被会话回收**。表现是：命令里查还活着，下一条命令查就没了——极像「崩溃」，会让你误删刚装好的扩展。
 
-菜单仍在，只作备用：**Plugins → MCP Server → Start Server**。中文界面里 Plugins 可能是「插件」或「扩展程序」。子菜单名是英文 **MCP Server**。3 秒后端口已在听，就不要再点，也不要再开关 SketchUp。
+Windows 用 explorer 转一手，进程才独立：
 
-## 5. 连通验收（必须做）
+```powershell
+Start-Process -FilePath "C:\Windows\explorer.exe" -ArgumentList "`"<SketchUp.exe 绝对路径>`""
+```
 
-连上后立刻做，不要先讲大项目。PyPI 0.1.17 的工具是这些，不要调用 README 里写过、包里没有的 `get_scene_info`：
+Mac：`open -a "SketchUp 2020"`。
 
-`create_component`、`delete_component`、`transform_component`、`get_selection`、`set_material`、`export_scene`、`eval_ruby`
+**检查点：** 启动后单开一条命令查，进程还在 + 标题变成 `无标题.skp - SketchUp Pro 2020`，且 `netstat -ano | grep 9876` 有 LISTENING。三条都满足才往下走。
 
-验收：
+---
 
-1. 列出工具，确认有 `create_component` 和 `export_scene`
-2. `create_component`，`type` 为 `cube`。SketchUp Ruby 内部单位是英寸。要大约 1 米的盒子，`dimensions` 用 `[39.37, 39.37, 39.37]`，不要按毫米传，否则会变成一根针
-3. `export_scene`，`format` 为 `png`，把图给用户看
+## 5. 一键验收
 
-三步都成功才算打通。失败时按下面排，不要重装 SketchUp。
+跑 `scripts/probe.py`，它会依次验：端口 → 握手取版本 → 建标准件 → 出 PNG，输出 JSON。
 
-## 6. 打不通时
+```bash
+python scripts/probe.py --out ./probe.png
+```
 
-按顺序查，改一处再测。SketchUp 已经开着时，禁止再启动或关闭它。连不上就停，把缺的那一步告诉用户。
+全绿才算打通。任一步失败 → 跳第 6 节对应分支。
 
-1. SketchUp 没开：让用户打开一次。已经开着就不要再开
-2. 等了 5 秒端口还没听：再让用户点一次 **Start Server**。不要用重启代替点击
-3. Plugins 里缺 `su_mcp.rb` 或 `su_mcp/main.rb`：补文件后让用户重启一次，只此一次
-4. 客户端里 `sketchup` 没亮：重启的是 AI 客户端，不是 SketchUp
-5. `uvx` 报 `FastMCP` 或 `eval_type_backport`：依赖没锁住，用第 2 步那条，不要改回 `@latest`
-6. 端口被占：关掉另一个 AI 客户端里的同一套 sketchup MCP，或让用户点 Stop Server 后再 Start Server
-7. 不要改去官方云端 MCP 凑数
+**手验版**（一行一条）：
 
-## 7. 打通之后怎么用（一句）
+```python
+# 建一个约 1 米的盒子（SketchUp 内部单位是英寸！1 m = 39.3701 in）
+{"id":1,"command":"eval_ruby","parameters":{"code":"..."}}
+```
 
-用户用中文说要建什么。先看当前模型里有没有既有物体；有就新建，不要删用户的旧东西。做完用 `export_scene` 出 png。不要一上来建整栋楼。
+**单位坑：** Ruby 里所有长度都是**英寸**。想要 1 米就写 `39.37`，写成 `1000` 会得到一根针。
 
-用户没说要建什么：不要空停，走第 8 节，只做一件。
+**编码坑（中文用户必踩）：** 发给扩展的 Ruby 代码里**不要出现中文字面量**。socket 按字节读、不走声明编码，中文字符可能让整个脚本语法错。注释和返回值都用英文，用户看的是图不是日志。
 
-不要做榫卯、燕尾榫、指接。那些工具在包里，但这份 skill 不用。
+---
 
-## 8. 连上后的默认演示（用户没点名要建什么时）
+## 6. 故障树
 
-第 5 步盒子成功、用户还没给项目时：**按职业只做一件。** 用 `eval_ruby`。失败就留下盒子，截图，停。不要为了补全去重装。
+按症状查。详细版见 `references/troubleshooting.md`。
 
-单位仍是英寸。下面脚本里的数字已经换成英寸。
+| 症状 | 原因 | 做法 |
+|---|---|---|
+| `ModuleNotFoundError: mcp.server.fastmcp` | 装到了 mcp 2.x | 按第 3 节锁 `mcp==1.12.0` |
+| `FastMCP.__init__() got an unexpected keyword 'description'` | mcp ≥1.15 | 降到 `1.12.0` |
+| `cannot import name 'eval_type_backport'` | pydantic ≥2.12 | 加 `pydantic<2.12` |
+| SketchUp 启动后几秒消失、无崩溃日志 | 进程被 shell 会话回收 | 改用 `explorer.exe` 启动 |
+| SketchUp 一启动就退、无任何日志 | `SKETCHUP_CONSOLE.show` | 打补丁 A |
+| 9876 拒绝连接 | 没 Start Server / 进程没了 | 补丁 B；确认进程在 |
+| 端口 LISTENING 但握手超时 | 上一请求没关闭连接 | 重连；单请求单连接 |
+| 建模出来是根针 | 按毫米传了英寸 | 除以 25.4 |
+| `tools/list` 返回 `Method not found` | 扩展本身不实现，由 Python 桥提供 | 走 MCP 客户端列工具；直连 TCP 时用 `eval_ruby` 探 |
 
-- **建筑设计**：小房子
-- **室内设计**：一间房加一张桌子
-- **景观设计**：三条地面线加一个约 1.7 米的尺度人（盒子加球，不要写实人体）
-- **没选 / 说不清**：做小房子
+---
 
-做完 `export_scene` format `png`，然后停，问要做自己的还是再看另一个。
+## 7. 打通之后
+
+**先看当前模型里有没有既有物体。有就新建，不要删用户的旧东西。** 遮挡视线的东西用 `hidden = true` 而不是删除，用户能自己恢复。
+
+**⚠️ 配置生效需要重启客户端。** Agent 不能重启自己，所以配好 MCP 后当前会话里工具可能还没出现。此时有两条路：
+
+1. 让用户重启客户端，之后用原生工具
+2. **降级走 TCP 直连**（立刻可用，不等重启）：`scripts/su_eval.py` 往 `127.0.0.1:9876` 发一行 JSON
+
+别因为「工具没出现」就判定没打通——端口通了就是通了。
+
+扩展支持的指令：`create_component`(cube/cylinder/sphere/cone)、`delete_component`、`transform_component`、`get_selection`、`set_material`、`export`/`export_scene`(skp/obj/dae/stl/png/jpg)、`boolean_operation`(union/difference/intersection)、`chamfer_edges`、`fillet_edges`、`eval_ruby`。
+
+**`eval_ruby` 是最强的**，其余工具不够用时直接写 Ruby。不要做榫卯、燕尾榫、指接——工具在包里，但这份 skill 不用。
+
+---
+
+## 8. 默认演示（用户没点名要建什么时）
+
+按职业只做一件。用 `eval_ruby`，失败就留下盒子、截图、停。数字已是英寸。
+
+⚠️ 本节三段代码 **v1.1 未实测**，来自 v1.0。跑不通就如实说，不要为了补全重装。
 
 ### A · 建筑：小房子
 
@@ -202,9 +249,7 @@ box(ents, -12, -12, 118, 248, 169, 142)
 model.commit_operation
 ```
 
-布尔挖门失败就留下门洞方块。不要重试整栋楼。
-
-### B · 室内：一间房
+### B · 室内：一间房加桌子
 
 ```ruby
 model = Sketchup.active_model
@@ -226,9 +271,7 @@ box(ents, 47, 43, 0, 110, 75, 30)
 model.commit_operation
 ```
 
-看点：门洞和一张桌子。不要加沙发、灯、材质包。
-
-### C · 景观：线 + 尺度人
+### C · 景观：地面线 + 尺度人
 
 ```ruby
 model = Sketchup.active_model
@@ -244,4 +287,21 @@ ents.add_circle([315,59,63], [0,0,1], 4)
 model.commit_operation
 ```
 
-看点：路是线，人是尺度。圆没有推拉成球也行，不要为了补一个球重做。
+做完 `export_scene` 出 PNG，然后停，问用户要做自己的还是再看另一个。
+
+---
+
+## 附：出图建议
+
+`export_scene` 之外的稳妥写法（可直接 `eval_ruby`）：
+
+```ruby
+view = Sketchup.active_model.active_view
+view.zoom_extents
+view.write_image({filename: 'C:/path/out.png', width: 1600, height: 1600,
+                  antialias: true, compression: 0.95})
+```
+
+- 输出路径用**纯 ASCII**，中文路径容易失败
+- 出图前把背景调浅：`model.rendering_options['BackgroundColor'] = Sketchup::Color.new(247,249,251)`
+- 模板自带的 2D 人物会挡画面，`hidden = true` 掉
