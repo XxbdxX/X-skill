@@ -1,7 +1,9 @@
 ---
 name: RhinoMCP开工
-description: 把 AI 接到 Rhino：装插件、uvx 起桥、mcpstart，不走 GitHub。
-version: 1.1.0
+slug: rhinomcp-kickoff
+displayName: RhinoMCP开工
+description: 把 AI 接到 Rhino：装插件、uvx 起桥、mcpstart，不走 GitHub。连上后先问职业，没项目就做一件小演示。
+version: 1.3.0
 ---
 
 # RhinoMCP 打通（第一步）
@@ -10,20 +12,30 @@ version: 1.1.0
 
 适用：任何能配本地 MCP 的客户端（WorkBuddy、Claude Desktop、Claude Code、Cursor、Codex、Cline 等）。改的是「MCP 配置里的 rhino 这一项」，不是某个软件专属流程。
 
-默认用社区包 **jingcheng-chen / rhinomcp 0.3.x**（Rhino Package Manager 搜 `rhinomcp`）。不要装 McNeel 官方 `RhinoMCP`，两套插件不要混。
+默认装 Rhino Package Manager 里的最新 **rhinomcp**（搜这个名字，点 Install）。不要锁死 0.3.x。2026-09-14 的发布是 **0.4.1.1**。插件和下面的 `uvx` 桥必须同一代，不要一个新一个旧。不要装 McNeel 官方 `RhinoMCP`，两套插件不要混。
 
 **禁止：** `git clone`、访问 GitHub、`Please install https://github.com/jingcheng-chen/rhinomcp`。国内会卡死。也不要用 ghproxy。
 
-## 0. 先问环境
+## 0. 第一句就问
 
-只问一次，缺什么补什么：
+只问一次。第一条消息先问职业，同一条里把环境问完。不要先讲原理，不要先建模型。
+
+职业（必问，只给这三个，不要改成开放长问）：
+
+- 建筑设计
+- 景观设计
+- 室内设计
+
+环境（同一条里问，缺什么补什么）：
 
 - 系统：Windows 还是 Mac
 - Rhino 是否已装（7 或更新）
 - 用的哪个 AI 客户端（能配 MCP 即可）
 - 有没有 Python 3.10+（`python --version` / `py --version`）
 
+用户已经说了要建什么：记下，连上后再做，不要跳过打通。
 缺 Rhino：停，让用户先装 Rhino。不要继续。
+职业没答：先打通，打通后再问一次。不要为了等职业卡住安装。
 
 ## 1. 装 Rhino 插件（不走 GitHub）
 
@@ -35,7 +47,7 @@ version: 1.1.0
 
 装完重启前不要做第 4 步。
 
-## 2. 装 uv（给 `uvx rhinomcp` 用）
+## 2. 装 uv（给 `uvx rhinomcp@latest` 用）
 
 检查：`uvx --version`。有就跳过。
 
@@ -71,7 +83,7 @@ set UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
 
 PowerShell：`$env:UV_INDEX_URL="https://mirrors.aliyun.com/pypi/simple"`
 
-先单独试一次：`uvx rhinomcp` 能启动就算桥可用。不要去 clone 源码。
+先单独试一次：`uvx rhinomcp@latest` 能启动就算桥可用。`@latest` 是为了每次启动重新解析，不要停在第一次下到的旧版。不要去 clone 源码。
 
 ## 3. 写入客户端的 MCP 配置
 
@@ -82,7 +94,7 @@ PowerShell：`$env:UV_INDEX_URL="https://mirrors.aliyun.com/pypi/simple"`
   "mcpServers": {
     "rhino": {
       "command": "uvx",
-      "args": ["rhinomcp"],
+      "args": ["rhinomcp@latest"],
       "env": {
         "RHINO_MCP_HOST": "127.0.0.1",
         "UV_INDEX_URL": "https://mirrors.aliyun.com/pypi/simple"
@@ -92,11 +104,11 @@ PowerShell：`$env:UV_INDEX_URL="https://mirrors.aliyun.com/pypi/simple"`
 }
 ```
 
-Windows 上若 `uvx` 不是一条命令，把 `command` 改成 `uvx.exe` 的绝对路径，`args` 仍为 `["rhinomcp"]`。
+Windows 上若 `uvx` 不是一条命令，把 `command` 改成 `uvx.exe` 的绝对路径，`args` 仍为 `["rhinomcp@latest"]`。
 
 常见落点（以用户本机为准，找不到就问）：
 
-- **Claude Code / Codex：** `claude mcp add rhino -- uvx rhinomcp` 或 `codex mcp add rhino --env RHINO_MCP_HOST=127.0.0.1 -- uvx rhinomcp`（加国内源时用手动 JSON）
+- **Claude Code / Codex：** `claude mcp add rhino -- uvx rhinomcp@latest` 或 `codex mcp add rhino --env RHINO_MCP_HOST=127.0.0.1 -- uvx rhinomcp@latest`（加国内源时用手动 JSON）
 - **Claude Desktop：** 设置里的 MCP 配置 JSON
 - **Cursor：** `.cursor/mcp.json` 或 Settings → MCP
 - **WorkBuddy：** `~/.workbuddy/mcp.json`（Windows：`%USERPROFILE%\.workbuddy\mcp.json`），或 连接器 / MCP → 自定义连接器
@@ -129,7 +141,7 @@ Windows 上若 `uvx` 不是一条命令，把 `command` 改成 `uvx.exe` 的绝�
 1. Rhino 没开，或没跑 **mcpstart**
 2. 插件不是 Package Manager 里的 `rhinomcp`，或没重启 Rhino
 3. 客户端里 `rhino` 没亮 / 没重启客户端
-4. `uvx rhinomcp` 自己跑不起来：换阿里云 PyPI 源；确认 Python ≥ 3.10
+4. `uvx rhinomcp@latest` 自己跑不起来：换阿里云 PyPI 源；确认 Python ≥ 3.10。若提示插件和桥版本不一致，两边都换成 Package Manager / PyPI 的最新版，不要退回 0.3.x
 5. Windows 找不到 `uvx`：改成绝对路径
 6. 端口被占：关掉另一个 AI 客户端里的同一套 rhino MCP，或 `mcpstop` 后再 `mcpstart`
 
@@ -137,57 +149,111 @@ Windows 上若 `uvx` 不是一条命令，把 `command` 改成 `uvx.exe` 的绝�
 
 用户用中文说要建什么（尺寸用毫米）。先读场景再建模；改完截同一机位视口。不要一上来建整栋楼。
 
+用户没说要建什么：不要空停，走第 8 节，只做一件。
+
 McNeel 官方 RhinoMCP 仍是 WIP，这份 skill 不要去装它。
 
 ## 8. 连上后的默认演示（用户没点名要建什么时）
 
-第 5 步盒子验收成功、用户还没给项目时：**不要空停，也不要建整栋楼。** 做「开场三连」，让人一眼看到 AI 不只会画盒子。
+第 5 步盒子验收成功、用户还没给项目时：**按职业只做一件。** 不要做开场三连，不要建整栋楼，不要建写实的人。
 
 规则：
 
 - 几何只放新图层 `MCP_Demo`，不要动用户已有模型
-- 已有重要模型时：只加图层，禁止 boolean / 全选删除
-- 每个任务做完立刻截 `perspective`（`zoom_to_fit=True`）给用户看，再做下一个
-- 三个都做完就停，问还要不要可选项
-- 尺寸一律毫米。某个工具当前客户端没有：跳过该项，改下一项，不要卡死
+- 已有重要模型时：只加图层，禁止 boolean 用户的旧物体 / 全选删除
+- 做完立刻截 `perspective`（`zoom_to_fit=True`）给用户看，然后停
+- 停的时候问：要做你自己的，还是再看另一个
+- 尺寸一律毫米
+- 某个脚本失败：留下已经建成的部分，截图，不要为了补全去重装插件
 
-### A · Loft 花瓶（曲面，不是盒子）
+职业对应：
 
-1. `CIRCLE`：圆心 `(0,0,0)` 半径 `400`
-2. `CIRCLE`：圆心 `(0,0,800)` 半径 `180`
-3. `loft` 这两根曲线（普通 loft 即可）
-4. 上色，截透视
+- **建筑设计**：小房子（外观体块）
+- **室内设计**：一间房（墙 + 门洞 + 一张桌子）。不要做整套户型，也不要做外观体块
+- **景观设计**：两三根地面曲线 + 一个高 1700mm 的尺度人。尺度人只要球头加身体，不要写实人体
+- **没选 / 说不清**：做小房子
 
-看点：两条圆一 loft，花瓶形体出来。这是「高级建模」而不是堆 primitive。
+### A · 建筑：小房子
 
-### B · 文字 + 尺寸标注（图纸感）
-
-rhinomcp 通常没有独立的 dimension 工具，用 `execute_rhinoscript_python_code`：
+用 `execute_rhinoscript_python_code`：
 
 ```python
 import rhinoscriptsyntax as rs
-rs.AddText("1000 mm", (500, -250, 0), 80)
-rs.AddLinearDimension((0, 0, 0), (1000, 0, 0), (500, -180, 0))
+
+layer = "MCP_Demo"
+if not rs.IsLayer(layer):
+    rs.AddLayer(layer)
+rs.CurrentLayer(layer)
+
+def box(x0, y0, z0, x1, y1, z1):
+    return rs.AddBox([
+        [x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0],
+        [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1],
+    ])
+
+walls = box(0, 0, 0, 6000, 4000, 3000)
+door = box(2550, -400, 0, 3450, 500, 2100)
+try:
+    rs.BooleanDifference(walls, door, True)
+except Exception:
+    pass
+box(-300, -300, 3000, 6300, 4300, 3600)
 ```
 
-看点：视口里同时出现模型和标注。很多人不知道 MCP 能标尺寸。
+看点：底盘、门洞、屋面板。这是一栋能认出的小房子，不是盒子堆。布尔失败就留下门洞方块，不要重试整栋楼。
 
-失败就跳过，不要为标注重装插件。
+### B · 室内：一间房
 
-### C · Grasshopper 三层楼（拖 slider 会变）
+```python
+import rhinoscriptsyntax as rs
 
-1. `gh_create_document(new_if_missing=True, make_active=True)`
-2. `gh_build_graph` 搭最少节点：`XY Plane` + 层数 `Number Slider`(默认 3) + `Series` + `Vector XYZ` + `Move` + `Center Box`（平面尺寸约 8000×6000，层高 3500）
-3. `recompute=True`，截 GH 预览或 Rhino 透视
+layer = "MCP_Demo"
+if not rs.IsLayer(layer):
+    rs.AddLayer(layer)
+rs.CurrentLayer(layer)
 
-看点：告诉用户去 Grasshopper 拖「层数」slider，楼会变高。这是参数化，不是死模型。
+def box(x0, y0, z0, x1, y1, z1):
+    return rs.AddBox([
+        [x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0],
+        [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1],
+    ])
 
-连线失败时不要硬撑吸引子/逐顶点变形。退回 A 的 loft 即可。
+box(0, 0, -80, 4000, 3000, 0)
+box(0, 0, 0, 1400, 180, 2700)
+box(2300, 0, 0, 4000, 180, 2700)
+box(0, 2820, 0, 4000, 3000, 2700)
+box(0, 0, 0, 180, 3000, 2700)
+box(3820, 0, 0, 4000, 3000, 2700)
+box(1200, 1100, 0, 2800, 1900, 750)
+```
 
-### 可选（用户说「再来」时，每次只做一个）
+看点：门洞和一张桌子。不要加沙发、灯、材质包。
 
-- **Pipe 栏杆**：一条折线/曲线 + `pipe`（半径 40）。看点：家具/扶手，不是体块。
-- **布尔挖洞**：盒子减一个圆柱/球。看点：空心、洞口。
-- **GH 嵌套玻璃球**：`Mesh Sphere Ex` + 多层半径 Series（不要做 sin 逐顶点，MCP 走不通）。看点：参数化好看，不是建筑。
+### C · 景观：线 + 尺度人
 
-不要默认跑可选三项。三连已经够「这也行」。
+```python
+import rhinoscriptsyntax as rs
+
+layer = "MCP_Demo"
+if not rs.IsLayer(layer):
+    rs.AddLayer(layer)
+rs.CurrentLayer(layer)
+
+rs.AddCurve([[0, 0, 0], [6000, 800, 0], [12000, 400, 0]])
+rs.AddCurve([[500, -2000, 0], [5000, -600, 0], [11000, 200, 0]])
+rs.AddCurve([[0, 2500, 0], [7000, 3200, 0], [13000, 2200, 0]])
+rs.AddBox([
+    [7820, 1380, 0], [8180, 1380, 0], [8180, 1620, 0], [7820, 1620, 0],
+    [7820, 1380, 1450], [8180, 1380, 1450], [8180, 1620, 1450], [7820, 1620, 1450],
+])
+rs.AddSphere([8000, 1500, 1590], 110)
+```
+
+看点：路是线，人是尺度，不是角色建模。
+
+### 用户说「再来」时，每次只做一个
+
+- 另一职业的那一件（没看过的小房子 / 房间 / 线加人）
+- 不要默认跑 Loft 花瓶、尺寸标注、Grasshopper 三层楼
+
+三件都看过就停，让用户说自己的项目。
