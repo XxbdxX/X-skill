@@ -1,9 +1,9 @@
 ---
-name: RhinoMCP开工
+name: rhino-开工
 slug: rhinomcp-kickoff
-displayName: RhinoMCP开工
-description: 把 AI 接到 Rhino：装插件、uvx 起桥、mcpstart，不走 GitHub。连上后先问职业，没项目就做一件小演示。
-version: 1.3.0
+displayName: rhino-开工
+description: 把 AI 接到本机 Rhino：装 rhinomcp 插件、uvx 起桥、跑 mcpstart，全程不走 GitHub，国内网络也能通。连上后先问职业，没项目就做一件小演示，让你一眼看到 AI 真能建东西。适用于任何能配本地 MCP 的客户端。
+version: 1.4.0
 ---
 
 # RhinoMCP 打通（第一步）
