@@ -2,8 +2,8 @@
 name: sketchup-开工
 slug: sketchup-kickoff
 displayName: sketchup-开工
-description: 把 AI 接到本机 SketchUp：把随包扩展拷进 Plugins、uvx 起桥、在菜单里 Start Server。不走 Extension Warehouse，也不让用户打开 GitHub。连上后先问职业，没项目就做一件小演示。适用于任何能配本地 MCP 的客户端。
-version: 1.0.1
+description: 把 AI 接到本机 SketchUp：随包扩展拷进 Plugins，加载后自动听 9876。桥锁定 sketchup-mcp 0.1.17、mcp 1.12.0、pydantic 2.12 以下。不走 Extension Warehouse，也不让用户打开 GitHub。连上后先问职业，没项目就做一件小演示。
+version: 1.0.2
 ---
 
 # SketchUp 打通（第一步）
@@ -94,7 +94,13 @@ set UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
 
 PowerShell：`$env:UV_INDEX_URL="https://mirrors.aliyun.com/pypi/simple"`
 
-先单独试一次：`uvx sketchup-mcp@latest` 能启动就算桥的包可用。这时还连不上 SketchUp 是正常的，因为第 4 步还没做。`@latest` 是为了不要停在第一次下到的旧版。
+先单独试一次下面这条，不要用 `uvx sketchup-mcp@latest`。`@latest` 会拉到 mcp 2.x，`FastMCP` 已改名，桥直接导入失败。WorkBuddy 在 SketchUp 2020 上测通的组合是 `sketchup-mcp==0.1.17` + `mcp[cli]==1.12.0` + `pydantic<2.12`。
+
+```bash
+uvx --with "mcp[cli]==1.12.0" --with "pydantic<2.12" sketchup-mcp==0.1.17
+```
+
+这时还连不上 SketchUp 是正常的。若报 `mcp.server.fastmcp`、`FastMCP` 或 `eval_type_backport`，就是依赖没锁住，不要改回 `@latest`。
 
 ## 3. 写入客户端的 MCP 配置
 
@@ -103,7 +109,7 @@ PowerShell：`$env:UV_INDEX_URL="https://mirrors.aliyun.com/pypi/simple"`
   "mcpServers": {
     "sketchup": {
       "command": "uvx",
-      "args": ["sketchup-mcp@latest"],
+      "args": ["--with", "mcp[cli]==1.12.0", "--with", "pydantic<2.12", "sketchup-mcp==0.1.17"],
       "env": {
         "UV_INDEX_URL": "https://mirrors.aliyun.com/pypi/simple"
       }
@@ -114,11 +120,9 @@ PowerShell：`$env:UV_INDEX_URL="https://mirrors.aliyun.com/pypi/simple"`
 
 桥写死连 `localhost:9876`。不要改端口，不要加 Rhino 那种 `RHINO_MCP_HOST`。
 
-Windows 上若 `uvx` 不是一条命令，把 `command` 改成 `uvx.exe` 的绝对路径，`args` 仍为 `["sketchup-mcp@latest"]`。
+Windows 上若 `uvx` 不是一条命令，把 `command` 改成 `uvx.exe` 的绝对路径，`args` 仍用上面那五行。写入时合并已有的 `mcp.json`，不要覆盖 rhino 或其他项。
 
-常见落点：
-
-- **Claude Code / Codex：** `claude mcp add sketchup -- uvx sketchup-mcp@latest` 或 `codex mcp add sketchup -- uvx sketchup-mcp@latest`
+- **Claude Code / Codex：** 用上面的 JSON，不要写成 `uvx sketchup-mcp@latest`
 - **Claude Desktop：** 设置里的 MCP 配置 JSON
 - **Cursor：** `.cursor/mcp.json` 或 Settings → MCP
 - **WorkBuddy：** `~/.workbuddy/mcp.json`（Windows：`%USERPROFILE%\.workbuddy\mcp.json`），或 连接器 / MCP → 自定义连接器
@@ -127,12 +131,11 @@ Windows 上若 `uvx` 不是一条命令，把 `command` 改成 `uvx.exe` 的绝�
 
 ## 4. 打开桥
 
-1. 打开 SketchUp（重启扩展后的那次）
-2. 菜单 **Plugins → MCP Server → Start Server**
-3. 中文界面里 Plugins 可能显示成「插件」或「扩展程序」。子菜单名是英文 **MCP Server**，不要去找「SketchupMCP」
-4. 停用：**Stop Server**
+扩展加载约 3 秒后会自己听 `127.0.0.1:9876`。不要为了启动去点菜单，也不要传 `-RubyStartup`。
 
-没有这一步，Agent 会连不上。扩展在 `127.0.0.1:9876` 听。代理点不到这个菜单就停，让用户自己点。不要关闭 SketchUp 再打开。
+Windows 上不要用 `Start-Process` 启动 SketchUp。那样启动的窗口会随那条命令结束被收掉，看起来像闪退，其实不是崩溃。要代开就用 `explorer.exe` 打开 `SketchUp.exe`，或者让用户自己开。只重启一次。进程消失时，先分清是 Start-Process 被回收，还是 Ruby 控制台把 2020 打退了。
+
+菜单仍在，只作备用：**Plugins → MCP Server → Start Server**。中文界面里 Plugins 可能是「插件」或「扩展程序」。子菜单名是英文 **MCP Server**。3 秒后端口已在听，就不要再点，也不要再开关 SketchUp。
 
 ## 5. 连通验收（必须做）
 
@@ -153,10 +156,10 @@ Windows 上若 `uvx` 不是一条命令，把 `command` 改成 `uvx.exe` 的绝�
 按顺序查，改一处再测。SketchUp 已经开着时，禁止再启动或关闭它。连不上就停，把缺的那一步告诉用户。
 
 1. SketchUp 没开：让用户打开一次。已经开着就不要再开
-2. 没点 **Start Server**：让用户点。不要用重启代替点击
+2. 等了 5 秒端口还没听：再让用户点一次 **Start Server**。不要用重启代替点击
 3. Plugins 里缺 `su_mcp.rb` 或 `su_mcp/main.rb`：补文件后让用户重启一次，只此一次
 4. 客户端里 `sketchup` 没亮：重启的是 AI 客户端，不是 SketchUp
-5. `uvx sketchup-mcp@latest` 自己跑不起来：换阿里云 PyPI 源；确认 Python ≥ 3.10
+5. `uvx` 报 `FastMCP` 或 `eval_type_backport`：依赖没锁住，用第 2 步那条，不要改回 `@latest`
 6. 端口被占：关掉另一个 AI 客户端里的同一套 sketchup MCP，或让用户点 Stop Server 后再 Start Server
 7. 不要改去官方云端 MCP 凑数
 

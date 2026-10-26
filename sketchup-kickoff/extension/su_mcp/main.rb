@@ -4,7 +4,6 @@ require 'socket'
 require 'fileutils'
 
 puts "MCP Extension loading..."
-SKETCHUP_CONSOLE.show rescue nil
 
 module SU_MCP
   class Server
@@ -13,17 +12,6 @@ module SU_MCP
       @server = nil
       @running = false
       @timer_id = nil
-      
-      # Try multiple ways to show console
-      begin
-        SKETCHUP_CONSOLE.show
-      rescue
-        begin
-          Sketchup.send_action("showRubyPanel:")
-        rescue
-          UI.start_timer(0) { SKETCHUP_CONSOLE.show }
-        end
-      end
     end
 
     def log(msg)
@@ -1854,6 +1842,8 @@ module SU_MCP
     menu = UI.menu("Plugins").add_submenu("MCP Server")
     menu.add_item("Start Server") { @server.start }
     menu.add_item("Stop Server") { @server.stop }
+    server = @server
+    UI.start_timer(3, false) { server.start }
     
     file_loaded(__FILE__)
   end
